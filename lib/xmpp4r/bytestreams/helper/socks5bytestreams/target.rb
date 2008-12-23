@@ -10,7 +10,8 @@ module Jabber
       ##
       # See SOCKS5Bytestreams#initialize
       def initialize(stream, session_id, initiator_jid, target_jid)
-        @connect_timeout = 60
+        @connect_timeout = 5
+        @connect_timeout_all = 60
         super
       end
       ##
@@ -60,7 +61,7 @@ module Jabber
         }
 
         begin
-          Timeout::timeout(@connect_timeout) { connect_sem.wait }
+          Timeout::timeout(@connect_timeout_all) { connect_sem.wait }
         rescue Timeout::Error
           @stream.delete_iq_callback(self)
         end

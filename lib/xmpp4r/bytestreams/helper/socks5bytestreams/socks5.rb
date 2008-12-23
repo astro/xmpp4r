@@ -50,6 +50,7 @@ module Jabber
         end
 
         case buf.respond_to?(:bytes) ? buf.bytes.to_a[3] : buf[3]
+          when 0 then read(2)  # accept bug in ejabberd's proxy (which is there because of old psi clients)
           when 1 then read(6)  # IPv4 addr
           when 3 then read(3 + domain.size) # Domain
           when 4 then read(18) # IPv6 addr
