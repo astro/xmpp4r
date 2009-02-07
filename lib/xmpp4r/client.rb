@@ -4,7 +4,7 @@
 
 require 'resolv'
 require 'xmpp4r/connection'
-require 'xmpp4r/sasl'
+require 'sasl'
 
 module Jabber
 
@@ -94,6 +94,37 @@ module Jabber
       }
     end
 
+    class XMPPPreferences < SASL::Preferences
+      def initialize(stream)
+        @stream = stream
+      end
+      def realm
+        @stream.jid.domain
+      end
+      def digest_uri
+        "xmpp/#{@stream.jid.domain}"
+      end
+      def username
+        @stream.jid.node
+      end
+      def allow_plaintext?
+        @stream.is_tls?
+      end
+    end
+
+    class PasswordPreferences < XMPPPreferences
+      def initialize(password, stream)
+        @password = password
+        super(stream)
+      end
+      def has_password?
+        true
+      end
+      def password
+        @password
+      end
+    end
+
     ##
     # Authenticate with the server
     #
@@ -106,11 +137,10 @@ module Jabber
     # password:: [String]
     def auth(password)
       begin
-        if @stream_mechanisms.include? 'DIGEST-MD5'
-          auth_sasl SASL.new(self, 'DIGEST-MD5'), password
-        elsif @stream_mechanisms.include? 'PLAIN'
-          auth_sasl SASL.new(self, 'PLAIN'), password
-        else
+        begin
+          pref = PasswordPreferences.new(password, self)
+          auth_sasl pref
+        rescue SASL::UnknownMechanism
           auth_nonsasl(password)
         end
       rescue
@@ -167,8 +197,38 @@ module Jabber
     # may look for the best mechanism suitable.
     # sasl:: Descendant of [Jabber::SASL::Base]
     # password:: [String]
-    def auth_sasl(sasl, password)
-      sasl.auth(password)
+    #
+    # Using Ruby-SASL, see http://github.com/astro/ruby-sasl
+    def auth_sasl(pref)
+      sasl = SASL.new(@stream_mechanisms, pref)
+
+      message_name, content = sasl.start
+      while message_name
+        stanza = REXML::Element.new(message_name)
+        stanza.add_namespace(NS_SASL)
+        stanza.attributes['mechanism'] = sasl.mechanism
+        stanza.text = content ? Base64::encode64(content).gsub(/\s/, '') : nil
+
+        if sasl.success? || sasl.failure?
+          send(stanza)
+          break
+        else
+          reply = nil
+          send(stanza) do |r|
+            reply = r
+            true
+          end
+        end
+
+        message_name = reply.name
+        content = reply.text ? Base64::decode64(reply.text) : nil
+        p :receive => [message_name, content]
+        message_name, content = sasl.receive(message_name, content)
+      end
+
+      if (not sasl.success?) && sasl.failure?
+        raise 'Authentication error'
+      end
 
       # Restart stream after SASL auth
       stop
@@ -191,6 +251,14 @@ module Jabber
       end
     end
 
+    NS_SASL = 'urn:ietf:params:xml:ns:xmpp-sasl'
+
+    class AnonymousPreferences < XMPPPreferences
+      def want_anonymous?
+        true
+      end
+    end
+
     ##
     # See Client#auth_anonymous_sasl
     def auth_anonymous
@@ -205,7 +273,7 @@ module Jabber
     def auth_anonymous_sasl
       if self.supports_anonymous?
         begin
-          auth_sasl SASL.new(self, 'ANONYMOUS'), ""
+          auth_sasl AnonymousPreferences.new(self)
         rescue
           Jabber::debuglog("#{$!.class}: #{$!}\n#{$!.backtrace.join("\n")}")
           raise ClientAuthenticationFailure, $!.to_s
