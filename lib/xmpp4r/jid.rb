@@ -148,9 +148,22 @@ module Jabber
       end
     end
 
+    ##
     # Escape JID
     def JID::escape(jid)
       return jid.to_s.gsub('@', '%')
+    end
+
+    ##
+    # Encode string with XEP-0106 encoding
+    def JID::encode_string(s)
+      s.gsub(/[ "&'\/:<>@\\]/) { |c| '\\' + c[0].to_s(16).rjust(2, '0') }
+    end
+
+    ##
+    # Decode string with XEP-0106 encoding
+    def JID::decode_string(s)
+      s.gsub(/\\../) { |c| c[1..-1].to_i(16).chr }
     end
 
     # Test if jid is empty

@@ -173,6 +173,36 @@ class JIDTest < Test::Unit::TestCase
     assert_equal('user1%server1@server2/res2', j2.to_s)
   end
 
+  def test_encode_xep0106
+    assert_equal('space\\20cadet', JID::encode_string('space cadet'))
+    assert_equal('call\\20me\\20\\22ishmael\\22', JID::encode_string('call me "ishmael"'))
+    assert_equal('at\\26t\\20guy', JID::encode_string('at&t guy'))
+    assert_equal('d\\27artagnan', JID::encode_string('d\'artagnan'))
+    assert_equal('\\2f.fanboy', JID::encode_string('/.fanboy'))
+    assert_equal('\\3a\\3afoo\\3a\\3a', JID::encode_string('::foo::'))
+    assert_equal('\\3cfoo\\3e', JID::encode_string('<foo>'))
+    assert_equal('user\\40host', JID::encode_string('user@host'))
+    assert_equal('c\\3a\\5cnet', JID::encode_string('c:\\net'))
+    assert_equal('c\\3a\\5c\\5cnet', JID::encode_string('c:\\\\net'))
+    assert_equal('c\\3a\\5ccool\\20stuff', JID::encode_string('c:\\cool stuff'))
+    assert_equal('c\\3a\\5c5commas', JID::encode_string('c:\\5commas'))
+  end
+
+  def test_decode_xep0106
+    assert_equal('space cadet', JID::decode_string('space\\20cadet'))
+    assert_equal('call me "ishmael"', JID::decode_string('call\\20me\\20\\22ishmael\\22'))
+    assert_equal('at&t guy', JID::decode_string('at\\26t\\20guy'))
+    assert_equal('d\'artagnan', JID::decode_string('d\\27artagnan'))
+    assert_equal('/.fanboy', JID::decode_string('\\2f.fanboy'))
+    assert_equal('::foo::', JID::decode_string('\\3a\\3afoo\\3a\\3a'))
+    assert_equal('<foo>', JID::decode_string('\\3cfoo\\3e'))
+    assert_equal('user@host', JID::decode_string('user\\40host'))
+    assert_equal('c:\\net', JID::decode_string('c\\3a\\5cnet'))
+    assert_equal('c:\\\\net', JID::decode_string('c\\3a\\5c\\5cnet'))
+    assert_equal('c:\\cool stuff', JID::decode_string('c\\3a\\5ccool\\20stuff'))
+    assert_equal('c:\\5commas', JID::decode_string('c\\3a\\5c5commas'))
+  end
+
 if defined?(libidnbug) # this crashes the interpreter
   def test_invalidnode
 #    assert_raises(IDN::Stringprep::StringprepError) { JID.new('toto@a/a', 'server', 'res') }
