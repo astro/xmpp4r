@@ -29,6 +29,9 @@ module Jabber
       @node = node
       if @domain.nil? and @resource.nil? and @node
         @node, @domain, @resource = @node.to_s.scan(PATTERN).first
+      elsif @node
+        # Not parsing a JID, must encode node
+        @node = JID::encode_string(@node)
       end
 
       if USE_STRINGPREP

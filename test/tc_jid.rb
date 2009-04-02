@@ -203,6 +203,19 @@ class JIDTest < Test::Unit::TestCase
     assert_equal('c:\\5commas', JID::decode_string('c\\3a\\5c5commas'))
   end
 
+  def test_encoded_node
+    j1 = JID.new('/.fanboy', 'example.com')
+    assert_equal('\\2f.fanboy', j1.node)
+    assert_equal('example.com', j1.domain)
+    j2 = JID.new('c:\\net', 'example.com')
+    assert_equal('c\\3a\\5cnet', j2.node)
+    assert_equal('example.com', j2.domain)
+
+    j_parsed = JID.new('c\\3a\\5ccool\\20stuff@example.com')
+    assert_equal('c\\3a\\5ccool\\20stuff', j_parsed.node)
+    assert_equal('example.com', j_parsed.domain)
+  end
+
 if defined?(libidnbug) # this crashes the interpreter
   def test_invalidnode
 #    assert_raises(IDN::Stringprep::StringprepError) { JID.new('toto@a/a', 'server', 'res') }
